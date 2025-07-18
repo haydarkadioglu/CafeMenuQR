@@ -3,24 +3,15 @@
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Coffee } from 'lucide-react';
-import jwt from 'jsonwebtoken';
 import { useEffect, useState } from 'react';
-
-const JWT_SECRET = process.env.NEXT_PUBLIC_JWT_SECRET || 'your-super-secret-key-that-is-long';
-
-function generateToken() {
-  // In a real application, the secret should be handled securely and not exposed on the client-side.
-  return jwt.sign({}, JWT_SECRET, { expiresIn: '1m' });
-}
 
 export default function QrCodePage() {
   const [qrCodeApiUrl, setQrCodeApiUrl] = useState('');
 
   useEffect(() => {
-    // Generate URL with token on the client-side to ensure it's unique per-load.
-    const token = generateToken();
+    // Generate URL on the client-side to get the correct window.location.origin
     const baseUrl = window.location.origin;
-    const menuUrl = `${baseUrl}/?token=${token}`;
+    const menuUrl = `${baseUrl}/`; // QR code now points to the root
     const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(menuUrl)}&qzone=1&margin=0`;
     setQrCodeApiUrl(url);
   }, []);
@@ -51,7 +42,7 @@ export default function QrCodePage() {
             )}
           </div>
           <p className="mt-6 text-muted-foreground">
-            Menü oturumu 1 dakika sonra sona erer ve yeni bir tarama gerektirir.
+             QR kodu okutarak her seferinde 1 dakika geçerli yeni bir menü oturumu başlatın.
           </p>
         </CardContent>
       </Card>
