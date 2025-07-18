@@ -10,7 +10,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Coffee, Utensils, GlassWater, QrCode, TimerIcon } from 'lucide-react';
 
-const SESSION_DURATION = 15 * 60; // 15 minutes
+const SESSION_DURATION = 1 * 60; // 1 minute
 
 const menuData = {
   "Coffees & Hot Drinks": [

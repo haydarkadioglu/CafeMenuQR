@@ -28,7 +28,7 @@ export default function QrCodePage() {
             />
           </div>
           <p className="mt-6 text-muted-foreground">
-            For a fresh experience, the menu session expires after 15 minutes, requiring a new scan.
+            For a fresh experience, the menu session expires after 1 minute, requiring a new scan.
           </p>
         </CardContent>
       </Card>
