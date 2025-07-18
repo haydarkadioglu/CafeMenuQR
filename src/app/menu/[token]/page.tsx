@@ -57,13 +57,13 @@ function InvalidSessionModal({ message }: { message: string }) {
 }
 
 function MenuPage({ params }: { params: { token: string } }) {
-  const { token } = params;
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
 
   useEffect(() => {
     async function validateToken() {
+      const token = params.token;
       if (!token) {
         setErrorMessage("Menüye erişmek için lütfen masanızdaki QR kodunu okutun.");
         setIsValid(false);
@@ -110,7 +110,7 @@ function MenuPage({ params }: { params: { token: string } }) {
     }
 
     validateToken();
-  }, [token]);
+  }, [params.token]);
 
   useEffect(() => {
     if (remainingTime === null || remainingTime <= 0) {
