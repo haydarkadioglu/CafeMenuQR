@@ -8,7 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Coffee, Utensils, GlassWater, QrCode } from 'lucide-react';
+import { Coffee, Utensils, GlassWater, QrCode, Timer } from 'lucide-react';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 
 const menuData = {
@@ -56,6 +56,7 @@ function InvalidSessionModal({ message }: { message: string }) {
 
 function MenuPage({ params }: { params: { token: string } }) {
   const [isValid, setIsValid] = useState<boolean | null>(null);
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const { token } = params;
 
   useEffect(() => {
@@ -65,13 +66,20 @@ function MenuPage({ params }: { params: { token: string } }) {
     }
 
     try {
-      // It's generally not safe to verify JWT on client. 
-      // This is a simplified example.
-      // In a real app, you would send this token to your backend for verification.
       const decoded = jwt.decode(token) as JwtPayload;
       if (decoded && decoded.exp) {
-        const isExpired = Date.now() >= decoded.exp * 1000;
+        const expirationTime = decoded.exp * 1000;
+        const now = Date.now();
+        const isExpired = now >= expirationTime;
+        
         setIsValid(!isExpired);
+
+        if (!isExpired) {
+          setRemainingTime(Math.round((expirationTime - now) / 1000));
+        } else {
+          setRemainingTime(0);
+        }
+
       } else {
         setIsValid(false);
       }
@@ -80,6 +88,20 @@ function MenuPage({ params }: { params: { token: string } }) {
       setIsValid(false);
     }
   }, [token]);
+
+  useEffect(() => {
+    if (remainingTime === null || remainingTime <= 0) {
+      if (remainingTime === 0) setIsValid(false);
+      return;
+    };
+
+    const timer = setInterval(() => {
+      setRemainingTime(prev => (prev !== null ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [remainingTime]);
+
 
   if (isValid === null) {
     return (
@@ -102,6 +124,16 @@ function MenuPage({ params }: { params: { token: string } }) {
         <header className="text-center mb-12">
           <h1 className="text-5xl font-bold font-headline text-primary/90">Menümüz</h1>
           <p className="text-muted-foreground mt-2 text-lg">Sizin için taptaze hazırlandı</p>
+          {remainingTime !== null && (
+            <Card className="max-w-xs mx-auto mt-4 py-2 px-4 bg-secondary border-primary/20">
+              <div className="flex items-center justify-center space-x-2 text-secondary-foreground">
+                <Timer className="w-5 h-5" />
+                <p className="font-mono text-lg font-semibold">
+                  Kalan Süre: {String(Math.floor(remainingTime / 60)).padStart(2, '0')}:{String(remainingTime % 60).padStart(2, '0')}
+                </p>
+              </div>
+            </Card>
+          )}
         </header>
 
         <Accordion type="multiple" defaultValue={Object.keys(menuData)} className="w-full max-w-2xl mx-auto">
