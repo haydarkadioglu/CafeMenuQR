@@ -54,8 +54,9 @@ function InvalidSessionModal({ message }: { message: string }) {
   );
 }
 
-function MenuPage({ params: { token } }: { params: { token: string } }) {
+function MenuPage({ params }: { params: { token: string } }) {
   const [isValid, setIsValid] = useState<boolean | null>(null);
+  const { token } = params;
 
   useEffect(() => {
     if (!token) {
