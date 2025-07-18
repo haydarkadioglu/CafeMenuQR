@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Coffee, Utensils, GlassWater, QrCode, Timer } from 'lucide-react';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from "firebase/firestore"; 
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const menuData = {
   "Coffees & Hot Drinks": [
@@ -60,17 +60,17 @@ function MenuPage({ params }: { params: { token: string } }) {
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
+  const { token } = params;
 
   useEffect(() => {
     async function validateToken() {
-      const token = params.token;
       if (!token) {
         setErrorMessage("Menüye erişmek için lütfen masanızdaki QR kodunu okutun.");
         setIsValid(false);
         return;
       }
 
-      // Check if token is already used in Firestore
+      // 1. Check if token is already used in Firestore
       const tokenRef = doc(db, "expired_tokens", token);
       const tokenSnap = await getDoc(tokenRef);
 
@@ -80,22 +80,21 @@ function MenuPage({ params }: { params: { token: string } }) {
         return;
       }
 
-      // Check JWT validity
+      // 2. Check JWT validity (expiration)
       try {
         const decoded = jwt.decode(token) as JwtPayload;
         if (decoded && decoded.exp) {
           const expirationTime = decoded.exp * 1000;
           const now = Date.now();
-          const isExpired = now >= expirationTime;
-
-          if (isExpired) {
+          
+          if (now >= expirationTime) {
              setErrorMessage("Oturum süreniz doldu. Lütfen QR kodu yeniden okutun.");
              setIsValid(false);
           } else {
-            // Token is valid and not used, show menu and then expire it
+            // Token is valid and not used, show menu and then expire it in Firestore.
             setIsValid(true);
             setRemainingTime(Math.round((expirationTime - now) / 1000));
-            // Add token to expired list in Firestore so it can't be reused
+            // IMPORTANT: Immediately add token to expired list to prevent reuse.
             await setDoc(tokenRef, { expiredAt: new Date() });
           }
         } else {
@@ -110,11 +109,13 @@ function MenuPage({ params }: { params: { token: string } }) {
     }
 
     validateToken();
-  }, [params]);
+  }, [token]);
 
   useEffect(() => {
-    if (remainingTime === null || remainingTime <= 0) {
-      if (remainingTime === 0) {
+    if (remainingTime === null) return;
+
+    if (remainingTime <= 0) {
+      if (isValid) { // Only update if it was previously valid
         setIsValid(false);
         setErrorMessage("Oturum süreniz doldu. Lütfen QR kodu yeniden okutun.");
       }
@@ -126,12 +127,12 @@ function MenuPage({ params }: { params: { token: string } }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [remainingTime]);
+  }, [remainingTime, isValid]);
 
 
   if (isValid === null) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <Coffee className="w-12 h-12 text-primary animate-pulse" />
       </div>
     );
@@ -143,7 +144,7 @@ function MenuPage({ params }: { params: { token: string } }) {
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 bg-background">
         <header className="text-center mb-12">
           <h1 className="text-5xl font-bold font-headline text-primary/90">Menümüz</h1>
           <p className="text-muted-foreground mt-2 text-lg">Sizin için taptaze hazırlandı</p>
@@ -171,7 +172,7 @@ function MenuPage({ params }: { params: { token: string } }) {
               <AccordionContent className="pt-4">
                 <div className="grid gap-4">
                   {items.map((item) => (
-                    <Card key={item.name} className="flex justify-between items-center p-4 shadow-sm transition-shadow hover:shadow-md">
+                    <Card key={item.name} className="flex justify-between items-center p-4 shadow-sm transition-shadow hover:shadow-md bg-card">
                       <div>
                         <h3 className="font-bold">{item.name}</h3>
                         <p className="text-sm text-muted-foreground">{item.description}</p>
