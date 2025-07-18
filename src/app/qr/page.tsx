@@ -24,10 +24,12 @@ export default function QrCodePage() {
             <Coffee className="w-12 h-12 text-primary" />
           </div>
           <CardTitle className="text-4xl font-headline text-primary/90">CafeMenuQR</CardTitle>
-          <CardDescription className="text-lg text-muted-foreground">Lezzetli menümüzü görüntülemek için aşağıdaki kodu tarayın!</CardDescription>
+          <CardDescription className="text-lg text-muted-foreground">
+            Lezzetli menümüzü görüntülemek için aşağıdaki kodu tarayın!
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="p-4 bg-white rounded-lg inline-block shadow-inner">
+          <div className="p-4 bg-white rounded-lg inline-block shadow-inner mb-4">
             {qrCodeApiUrl ? (
               <Image
                 src={qrCodeApiUrl}
@@ -41,8 +43,8 @@ export default function QrCodePage() {
                <div className="w-[250px] h-[250px] bg-gray-200 animate-pulse rounded-lg" />
             )}
           </div>
-          <p className="mt-6 text-muted-foreground">
-             QR kodu okutarak her seferinde 1 dakika geçerli yeni bir menü oturumu başlatın.
+          <p className="text-sm text-muted-foreground">
+            Her QR kodu taramasında 1 dakika geçerli tek kullanımlık menü oturumu başlar.
           </p>
         </CardContent>
       </Card>

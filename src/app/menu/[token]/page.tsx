@@ -56,13 +56,23 @@ function InvalidSessionModal({ message }: { message: string }) {
   );
 }
 
-function MenuPage({ params }: { params: { token: string } }) {
+function MenuPage({ params }: { params: Promise<{ token: string }> }) {
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
-  const { token } = params;
+  const [token, setToken] = useState<string>('');
 
   useEffect(() => {
+    async function getToken() {
+      const resolvedParams = await params;
+      setToken(resolvedParams.token);
+    }
+    getToken();
+  }, [params]);
+
+  useEffect(() => {
+    if (!token) return;
+
     async function validateToken() {
       if (!token) {
         setErrorMessage("Menüye erişmek için lütfen masanızdaki QR kodunu okutun.");
@@ -70,17 +80,26 @@ function MenuPage({ params }: { params: { token: string } }) {
         return;
       }
 
-      // 1. Check if token is already used in Firestore
-      const tokenRef = doc(db, "expired_tokens", token);
+      // 1. Check if token exists in expired collection
+      const tokenRef = doc(db, "expired", token);
       const tokenSnap = await getDoc(tokenRef);
 
-      if (tokenSnap.exists()) {
+      if (!tokenSnap.exists()) {
+        setErrorMessage("Geçersiz menü linki. Lütfen QR kodu tekrar okutun.");
+        setIsValid(false);
+        return;
+      }
+
+      const tokenData = tokenSnap.data();
+      
+      // 2. Check if token is already used (status: expired)
+      if (tokenData.status === 'expired') {
         setErrorMessage("Bu menü linki daha önce kullanılmış. Lütfen QR kodu tekrar okutun.");
         setIsValid(false);
         return;
       }
 
-      // 2. Check JWT validity (expiration)
+      // 3. Check JWT validity (expiration)
       try {
         const decoded = jwt.decode(token) as JwtPayload;
         if (decoded && decoded.exp) {
@@ -90,12 +109,22 @@ function MenuPage({ params }: { params: { token: string } }) {
           if (now >= expirationTime) {
              setErrorMessage("Oturum süreniz doldu. Lütfen QR kodu yeniden okutun.");
              setIsValid(false);
+             // Token süresi dolmuş, status'u expired yap
+             await setDoc(tokenRef, { 
+               ...tokenData,
+               status: 'expired',
+               expiredAt: new Date() 
+             });
           } else {
-            // Token is valid and not used, show menu and then expire it in Firestore.
+            // Token is valid and not used, show menu and mark as expired
             setIsValid(true);
             setRemainingTime(Math.round((expirationTime - now) / 1000));
-            // IMPORTANT: Immediately add token to expired list to prevent reuse.
-            await setDoc(tokenRef, { expiredAt: new Date() });
+            // IMPORTANT: Mark token as expired to prevent reuse
+            await setDoc(tokenRef, { 
+              ...tokenData,
+              status: 'expired',
+              expiredAt: new Date() 
+            });
           }
         } else {
           setErrorMessage("Geçersiz menü linki. Lütfen QR kodu tekrar okutun.");
