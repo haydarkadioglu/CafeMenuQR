@@ -10,6 +10,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Coffee, Utensils, GlassWater, QrCode, Timer } from 'lucide-react';
 import jwt, { JwtPayload } from 'jsonwebtoken';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc } from "firebase/firestore"; 
 
 const menuData = {
   "Coffees & Hot Drinks": [
@@ -55,43 +57,67 @@ function InvalidSessionModal({ message }: { message: string }) {
 }
 
 function MenuPage({ params }: { params: { token: string } }) {
-  const [isValid, setIsValid] = useState<boolean | null>(null);
-  const [remainingTime, setRemainingTime] = useState<number | null>(null);
   const { token } = params;
+  const [isValid, setIsValid] = useState<boolean | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [remainingTime, setRemainingTime] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      setIsValid(false);
-      return;
-    }
+    async function validateToken() {
+      if (!token) {
+        setErrorMessage("Menüye erişmek için lütfen masanızdaki QR kodunu okutun.");
+        setIsValid(false);
+        return;
+      }
 
-    try {
-      const decoded = jwt.decode(token) as JwtPayload;
-      if (decoded && decoded.exp) {
-        const expirationTime = decoded.exp * 1000;
-        const now = Date.now();
-        const isExpired = now >= expirationTime;
-        
-        setIsValid(!isExpired);
+      // Check if token is already used in Firestore
+      const tokenRef = doc(db, "expired_tokens", token);
+      const tokenSnap = await getDoc(tokenRef);
 
-        if (!isExpired) {
-          setRemainingTime(Math.round((expirationTime - now) / 1000));
+      if (tokenSnap.exists()) {
+        setErrorMessage("Bu menü linki daha önce kullanılmış. Lütfen QR kodu tekrar okutun.");
+        setIsValid(false);
+        return;
+      }
+
+      // Check JWT validity
+      try {
+        const decoded = jwt.decode(token) as JwtPayload;
+        if (decoded && decoded.exp) {
+          const expirationTime = decoded.exp * 1000;
+          const now = Date.now();
+          const isExpired = now >= expirationTime;
+
+          if (isExpired) {
+             setErrorMessage("Oturum süreniz doldu. Lütfen QR kodu yeniden okutun.");
+             setIsValid(false);
+          } else {
+            // Token is valid and not used, show menu and then expire it
+            setIsValid(true);
+            setRemainingTime(Math.round((expirationTime - now) / 1000));
+            // Add token to expired list in Firestore so it can't be reused
+            await setDoc(tokenRef, { expiredAt: new Date() });
+          }
         } else {
-          setRemainingTime(0);
+          setErrorMessage("Geçersiz menü linki. Lütfen QR kodu tekrar okutun.");
+          setIsValid(false);
         }
-
-      } else {
+      } catch (error) {
+        console.error("Token validation error:", error);
+        setErrorMessage("Geçersiz bir hata oluştu. Lütfen QR kodu tekrar okutun.");
         setIsValid(false);
       }
-    } catch (error) {
-      console.error("Token validation error:", error);
-      setIsValid(false);
     }
+
+    validateToken();
   }, [token]);
 
   useEffect(() => {
     if (remainingTime === null || remainingTime <= 0) {
-      if (remainingTime === 0) setIsValid(false);
+      if (remainingTime === 0) {
+        setIsValid(false);
+        setErrorMessage("Oturum süreniz doldu. Lütfen QR kodu yeniden okutun.");
+      }
       return;
     };
 
@@ -112,10 +138,7 @@ function MenuPage({ params }: { params: { token: string } }) {
   }
 
   if (!isValid) {
-    const message = token 
-      ? "Oturum süreniz doldu. Menüyü tekrar görüntülemek için lütfen QR kodu yeniden okutun."
-      : "Menüye erişmek için lütfen masanızdaki QR kodunu okutun.";
-    return <InvalidSessionModal message={message} />;
+    return <InvalidSessionModal message={errorMessage} />;
   }
 
   return (
