@@ -110,7 +110,7 @@ function MenuPage({ params }: { params: { token: string } }) {
     }
 
     validateToken();
-  }, [params.token]);
+  }, [params]);
 
   useEffect(() => {
     if (remainingTime === null || remainingTime <= 0) {
